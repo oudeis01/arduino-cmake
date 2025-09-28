@@ -1,0 +1,30 @@
+# Arduino UNO Board Configuration
+
+# 툴체인을 가장 먼저 설정
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchains/avr-gcc.cmake")
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/cores/arduino-avr.cmake)
+
+set(PROJECT_NAME "arduino_uno_project" CACHE INTERNAL "")
+
+# AVR 보드 설정 (보드명, MCU, F_CPU, variant)
+setup_avr_board("AVR_UNO" "atmega328p" "16000000L" "standard")
+
+# 후처리 함수 등록
+function(board_post_build target_name)
+    avr_post_build(${target_name} "atmega328p")
+    
+    # 업로드 타겟 생성
+    if(NOT DEFINED UPLOAD_DEVICE)
+        set(UPLOAD_DEVICE "/dev/ttyACM0")
+    endif()
+
+    add_custom_target(upload_${target_name}
+        COMMAND avrdude -p atmega328p -c arduino -P ${UPLOAD_DEVICE} -b 115200
+                -U flash:w:${CMAKE_CURRENT_BINARY_DIR}/${target_name}.hex:i
+        DEPENDS ${target_name}
+        COMMENT "Uploading ${target_name}.hex to Arduino UNO via ${UPLOAD_DEVICE}"
+    )
+    
+    message(STATUS "To upload: make upload_${target_name} or cmake --build . --target upload_${target_name}")
+endfunction()

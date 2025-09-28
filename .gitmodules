@@ -1,0 +1,12 @@
+[submodule "vendor/Arduino_Core_STM32"]
+	path = vendor/Arduino_Core_STM32
+	url = https://github.com/stm32duino/Arduino_Core_STM32
+[submodule "vendor/ArduinoCore-avr"]
+	path = vendor/ArduinoCore-avr
+	url = https://github.com/arduino/ArduinoCore-avr
+[submodule "vendor/klangstrom-arduino"]
+	path = vendor/klangstrom-arduino
+	url = https://github.com/Klangstrom/klangstrom-arduino/
+[submodule "vendor/umfeld-arduino"]
+	path = vendor/umfeld-arduino
+	url = https://github.com/dennisppaul/umfeld-arduino
