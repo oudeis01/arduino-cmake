@@ -4,6 +4,7 @@
 !.gitmodules
 build/
 *.md
+!README.md
 *.txt
 !CMakeLists.txt
 *.log
