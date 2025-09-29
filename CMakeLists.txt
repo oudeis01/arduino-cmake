@@ -1,51 +1,74 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 
-# 조기 보드 설정을 위한 임시 변수
-set(TARGET_BOARD "uno" CACHE STRING "Target board")
+#===============================================================================
+# 🚀 VENDOR-CENTRIC ARDUINO CMAKE SYSTEM
+#
+# This system leverages vendor-provided CMake systems:
+# - Arduino_Core_STM32: 500+ STM32 boards (117K lines boards_db.cmake)
+# - ArduinoCore-avr: 100+ Arduino boards (boards.txt parsing)
+# - klangstrom-arduino: Custom boards with vendor integration
+#
+# Key Features:
+# - Zero external dependencies (no ~/.arduino15 references)
+# - Full vendor system integration
+# - Automatic board discovery and registration
+# - Professional-grade build configurations
+#===============================================================================
 
-# 보드별 툴체인 설정 로드 (프로젝트 선언 전에 필요)
-if(TARGET_BOARD STREQUAL "uno" OR TARGET_BOARD STREQUAL "nano" OR TARGET_BOARD STREQUAL "mega2560" OR TARGET_BOARD STREQUAL "leonardo" OR TARGET_BOARD STREQUAL "micro")
-    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchains/avr-gcc.cmake")
-elseif(TARGET_BOARD STREQUAL "klst_panda" OR TARGET_BOARD MATCHES "nucleo_.*")
-    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchains/arm-none-eabi.cmake")
-endif()
-
-# 유틸리티 로드
-include(cmake/utils/vendor-paths.cmake)
-include(cmake/utils/board-finder.cmake)
-
-# 사용 가능한 보드 탐지
-discover_available_boards(AVAILABLE_BOARDS)
-
-# 보드 선택 검증
-set_property(CACHE TARGET_BOARD PROPERTY STRINGS ${AVAILABLE_BOARDS})
-
-# 소스 디렉토리 옵션
+# Early board selection for toolchain setup
+set(TARGET_BOARD "uno" CACHE STRING "Target board (auto-detected from vendor systems)")
 set(SOURCE_DIR "src" CACHE STRING "Source directory")
 
-# 보드 유효성 검사
-if(NOT TARGET_BOARD IN_LIST AVAILABLE_BOARDS)
-    message(FATAL_ERROR "Unsupported board: ${TARGET_BOARD}. Available boards: ${AVAILABLE_BOARDS}")
+# Core vendor integration system
+include(cmake/core/vendor_dispatcher.cmake)
+
+# Initialize vendor systems and detect all available boards
+initialize_vendor_systems()
+detect_all_boards(ALL_AVAILABLE_BOARDS)
+
+# Set up available boards for CMake GUI/ccmake
+set_property(CACHE TARGET_BOARD PROPERTY STRINGS ${ALL_AVAILABLE_BOARDS})
+
+# Validate board selection
+if(NOT TARGET_BOARD IN_LIST ALL_AVAILABLE_BOARDS)
+    message(FATAL_ERROR
+        "❌ Board '${TARGET_BOARD}' not supported.\n"
+        "📋 Available boards: ${ALL_AVAILABLE_BOARDS}\n"
+        "💡 Tip: Use 'cmake -DTARGET_BOARD=<board>' to specify a board"
+    )
 endif()
 
-message(STATUS "Building for target board: ${TARGET_BOARD}")
-message(STATUS "Available boards: ${AVAILABLE_BOARDS}")
+# Board-specific setup (including toolchain configuration)
+setup_board_environment(${TARGET_BOARD})
 
-# 보드 설정 자동 로드
-load_board_config(${TARGET_BOARD})
+# Ensure PROJECT_NAME is set properly
+if(NOT DEFINED PROJECT_NAME OR PROJECT_NAME STREQUAL "")
+    set(PROJECT_NAME "${TARGET_BOARD}_project")
+    message(STATUS "🔧 Fallback PROJECT_NAME: ${PROJECT_NAME}")
+endif()
 
-# 프로젝트 선언 (보드 설정에서 PROJECT_NAME이 정의됨)
+# Project declaration with vendor-determined name
 project(${PROJECT_NAME} C CXX ASM)
 
-# 공통 컴파일 옵션
+# Display build information
+message(STATUS "🎯 Target Board: ${TARGET_BOARD}")
+message(STATUS "📦 Project: ${PROJECT_NAME}")
+message(STATUS "🔧 Vendor System: ${BOARD_VENDOR_SYSTEM}")
+message(STATUS "⚙️  Build Type: ${CMAKE_BUILD_TYPE}")
+if(CMAKE_TOOLCHAIN_FILE)
+    message(STATUS "🛠️  Toolchain: ${CMAKE_TOOLCHAIN_FILE}")
+endif()
+
+# Common build settings
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
-
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# 소스 파일 수집 (.ino 파일 포함)
+# User source collection with .ino support
 file(GLOB_RECURSE USER_SOURCES
     "${SOURCE_DIR}/*.c"
     "${SOURCE_DIR}/*.cpp"
@@ -53,35 +76,27 @@ file(GLOB_RECURSE USER_SOURCES
     "${SOURCE_DIR}/*.S"
 )
 
-# .ino 파일을 .cpp로 변환
-convert_ino_files(USER_SOURCES)
+# Convert .ino files to .cpp (Arduino compatibility)
+process_ino_files(USER_SOURCES)
 
-# 실행 파일 생성
+# Collect vendor sources before creating executable
+collect_vendor_sources()
+
+# Create executable with vendor-integrated sources
 add_executable(${PROJECT_NAME}
     ${USER_SOURCES}
-    ${BOARD_CORE_SOURCES}
+    ${VENDOR_CORE_SOURCES}
 )
 
-# 보드별 설정 적용
-target_compile_definitions(${PROJECT_NAME} PRIVATE ${BOARD_COMPILE_DEFINITIONS})
-target_include_directories(${PROJECT_NAME} PRIVATE ${BOARD_INCLUDE_DIRECTORIES})
-target_compile_options(${PROJECT_NAME} PRIVATE ${BOARD_COMPILE_OPTIONS})
-target_link_options(${PROJECT_NAME} PRIVATE ${BOARD_LINK_OPTIONS})
+# Apply vendor-integrated build configuration
+apply_vendor_build_config(${PROJECT_NAME})
 
-if(BOARD_LIBRARIES)
-    target_link_libraries(${PROJECT_NAME} ${BOARD_LIBRARIES})
-endif()
+# Vendor-specific post-build processing
+execute_vendor_post_build(${PROJECT_NAME})
 
-# 보드별 후처리
-if(COMMAND board_post_build)
-    board_post_build(${PROJECT_NAME})
-endif()
-
-# 빌드 정보 출력
-message(STATUS "Project: ${PROJECT_NAME}")
-message(STATUS "Board: ${TARGET_BOARD}")  
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "Source files: ${USER_SOURCES}")
-if(CMAKE_TOOLCHAIN_FILE)
-    message(STATUS "Toolchain: ${CMAKE_TOOLCHAIN_FILE}")
-endif()
+# Build summary
+list(LENGTH USER_SOURCES SOURCE_COUNT)
+list(LENGTH VENDOR_CORE_SOURCES VENDOR_SOURCE_COUNT)
+math(EXPR TOTAL_SOURCES "${SOURCE_COUNT} + ${VENDOR_SOURCE_COUNT}")
+message(STATUS "📄 Sources: ${SOURCE_COUNT} user + ${VENDOR_SOURCE_COUNT} vendor = ${TOTAL_SOURCES} total")
+message(STATUS "✅ Configuration complete!")
