@@ -2,6 +2,50 @@
 
 CMake 기반 Arduino 빌드 시스템. Arduino IDE 없이 AVR 기반 보드를 빌드 및 업로드.
 
+## 시스템 구조
+
+### 빌드 흐름
+
+```mermaid
+graph LR
+    A[1. 코어 빌드] --> B[2. 프로젝트 빌드] --> C[3. 업로드]
+    
+    style A fill:#e1f5ff
+    style B fill:#ffe1e1
+    style C fill:#e1ffe1
+```
+
+**1단계: 코어 라이브러리 빌드**
+```
+Root CMakeLists.txt → ArduinoCore.cmake → vendor/ArduinoCore-avr
+                                        ↓
+                                install/lib/libArduinoCore-*.a
+```
+
+**2단계: 프로젝트 빌드**
+```
+Project CMakeLists.txt → ArduinoProject.cmake → boards/avr/{board}.cmake
+                                              ↓
+                                    link libArduinoCore-*.a
+                                              ↓
+                                         {project}.hex
+```
+
+**3단계: 업로드**
+```
+avrdude -p {mcu} -c arduino -P {port} -U flash:w:{project}.hex
+```
+
+### 주요 CMake 모듈
+
+| 모듈 | 역할 |
+|------|------|
+| `cmake/toolchains/avr-gcc.cmake` | AVR-GCC 툴체인 설정 |
+| `cmake/core/ArduinoCore.cmake` | Arduino 코어 라이브러리 빌드 |
+| `cmake/modules/ArduinoProject.cmake` | 프로젝트용 CMake 함수 (arduino_init, arduino_executable) |
+| `cmake/boards/avr/{board}.cmake` | 보드별 MCU/F_CPU 설정 |
+| `cmake/core/avr_integration.cmake` | boards.txt 파싱 및 벤더 통합 |
+
 ## 시스템 요구사항
 
 ### 기본 도구
