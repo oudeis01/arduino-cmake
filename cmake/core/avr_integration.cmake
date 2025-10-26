@@ -232,12 +232,83 @@ function(apply_avr_build_config target_name)
         ARDUINO_AVR_${TARGET_BOARD}
         ARDUINO_ARCH_AVR
     )
+    
+    # Set MCU-specific compiler flags
+    target_compile_options(${target_name} PRIVATE
+        -mmcu=${board_mcu}
+    )
+    
+    # Set MCU-specific linker flags
+    target_link_options(${target_name} PRIVATE
+        -mmcu=${board_mcu}
+    )
 
-    # Set up include directories
+    # Set up include directories (Arduino core only)
     target_include_directories(${target_name} PRIVATE
         "${AVR_VENDOR_ROOT}/cores/${board_core}"
         "${AVR_VENDOR_ROOT}/variants/${board_variant}"
     )
+    
+    # Store library include directories for later use
+    set(LIBRARY_INCLUDE_DIRS "")
+    
+    # Add project-local library include directories first (if they exist)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/libraries")
+        file(GLOB PROJECT_LIBRARY_DIRS "${CMAKE_SOURCE_DIR}/libraries/*")
+        foreach(LIB_DIR ${PROJECT_LIBRARY_DIRS})
+            if(IS_DIRECTORY "${LIB_DIR}")
+                # Check for src directory first
+                if(IS_DIRECTORY "${LIB_DIR}/src")
+                    list(APPEND LIBRARY_INCLUDE_DIRS "${LIB_DIR}/src")
+                    # Also check for subdirectories in src (like FastLED's fl subdirectory)
+                    file(GLOB SUBDIRS "${LIB_DIR}/src/*")
+                    foreach(SUBDIR ${SUBDIRS})
+                        if(IS_DIRECTORY "${SUBDIR}")
+                            list(APPEND LIBRARY_INCLUDE_DIRS "${SUBDIR}")
+                        endif()
+                    endforeach()
+                else()
+                    # If no src, include the library root
+                    list(APPEND LIBRARY_INCLUDE_DIRS "${LIB_DIR}")
+                endif()
+            endif()
+        endforeach()
+    endif()
+    
+    # Add vendor library include directories
+    file(GLOB LIBRARY_DIRS "${AVR_VENDOR_ROOT}/libraries/*")
+    foreach(LIB_DIR ${LIBRARY_DIRS})
+        if(IS_DIRECTORY "${LIB_DIR}")
+            # Check for src directory first
+            if(IS_DIRECTORY "${LIB_DIR}/src")
+                list(APPEND LIBRARY_INCLUDE_DIRS "${LIB_DIR}/src")
+            else()
+                # If no src, include the library root
+                list(APPEND LIBRARY_INCLUDE_DIRS "${LIB_DIR}")
+            endif()
+        endif()
+    endforeach()
+    
+    # Apply include directories with C/C++ separation for user code only
+    # We'll add library includes only to user source files, not Arduino core
+    set(USER_SOURCES "")
+    foreach(SOURCE ${ARGN})
+        if(SOURCE MATCHES "^${CMAKE_CURRENT_SOURCE_DIR}")
+            list(APPEND USER_SOURCES ${SOURCE})
+        endif()
+    endforeach()
+    
+    foreach(INC_DIR ${LIBRARY_INCLUDE_DIRS})
+        # Only add to user C++ files to avoid conflicts with Arduino core
+        foreach(USER_SOURCE ${USER_SOURCES})
+            if(USER_SOURCE MATCHES "\\.cpp$" OR USER_SOURCE MATCHES "\\.cxx$" OR USER_SOURCE MATCHES "\\.cc$")
+                get_filename_component(SOURCE_OBJ ${USER_SOURCE} NAME_WE)
+                set_source_files_properties(${USER_SOURCE} PROPERTIES 
+                    COMPILE_FLAGS "-I${INC_DIR}"
+                )
+            endif()
+        endforeach()
+    endforeach()
 
     # Get and set vendor core sources
     get_avr_vendor_sources("${board_core}")
@@ -247,17 +318,33 @@ function(apply_avr_build_config target_name)
 endfunction()
 
 function(get_avr_vendor_sources core)
-    # Collect Arduino core sources
+    # Collect Arduino core sources only
     file(GLOB AVR_CORE_SOURCES
         "${AVR_VENDOR_ROOT}/cores/${core}/*.c"
         "${AVR_VENDOR_ROOT}/cores/${core}/*.cpp"
         "${AVR_VENDOR_ROOT}/cores/${core}/*.S"
     )
 
-    set(AVR_VENDOR_SOURCES ${AVR_CORE_SOURCES} PARENT_SCOPE)
+    # Collect vendor library sources (excluding FastLED to avoid conflicts)
+    file(GLOB LIBRARY_SOURCES
+        "${AVR_VENDOR_ROOT}/libraries/*/src/*.c"
+        "${AVR_VENDOR_ROOT}/libraries/*/src/*.cpp"
+        "${AVR_VENDOR_ROOT}/libraries/*/src/*.S"
+    )
+    
+    # Filter out FastLED sources from vendor libraries
+    list(FILTER LIBRARY_SOURCES EXCLUDE REGEX ".*FastLED.*")
 
-    list(LENGTH AVR_CORE_SOURCES source_count)
-    message(STATUS "📁 Collected ${source_count} AVR core sources")
+    set(AVR_VENDOR_SOURCES ${AVR_CORE_SOURCES} ${LIBRARY_SOURCES} PARENT_SCOPE)
+    set(VENDOR_CORE_SOURCES ${AVR_CORE_SOURCES} ${LIBRARY_SOURCES} PARENT_SCOPE)
+
+    list(LENGTH AVR_CORE_SOURCES core_count)
+    list(LENGTH LIBRARY_SOURCES lib_count)
+    math(EXPR total_count "${core_count} + ${lib_count}")
+    
+    message(STATUS "📁 Collected ${core_count} AVR core sources")
+    message(STATUS "📚 Collected ${lib_count} vendor library sources")
+    message(STATUS "📦 Total vendor sources: ${total_count}")
 endfunction()
 
 #-------------------------------------------------------------------------------

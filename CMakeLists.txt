@@ -1,102 +1,34 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.15)
 
-#===============================================================================
-# 🚀 VENDOR-CENTRIC ARDUINO CMAKE SYSTEM
-#
-# This system leverages vendor-provided CMake systems:
-# - Arduino_Core_STM32: 500+ STM32 boards (117K lines boards_db.cmake)
-# - ArduinoCore-avr: 100+ Arduino boards (boards.txt parsing)
-# - klangstrom-arduino: Custom boards with vendor integration
-#
-# Key Features:
-# - Zero external dependencies (no ~/.arduino15 references)
-# - Full vendor system integration
-# - Automatic board discovery and registration
-# - Professional-grade build configurations
-#===============================================================================
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchains/avr-gcc.cmake" CACHE FILEPATH "AVR toolchain")
 
-# Early board selection for toolchain setup
-set(TARGET_BOARD "uno" CACHE STRING "Target board (auto-detected from vendor systems)")
-set(SOURCE_DIR "src" CACHE STRING "Source directory")
+project(ArduinoCore C CXX ASM)
 
-# Core vendor integration system
-include(cmake/core/vendor_dispatcher.cmake)
+include(cmake/core/ArduinoCore.cmake)
 
-# Initialize vendor systems and detect all available boards
-initialize_vendor_systems()
-detect_all_boards(ALL_AVAILABLE_BOARDS)
+set(ARDUINO_BOARD "uno" CACHE STRING "Arduino board to build core for")
+set_property(CACHE ARDUINO_BOARD PROPERTY STRINGS uno nano mega2560)
 
-# Set up available boards for CMake GUI/ccmake
-set_property(CACHE TARGET_BOARD PROPERTY STRINGS ${ALL_AVAILABLE_BOARDS})
-
-# Validate board selection
-if(NOT TARGET_BOARD IN_LIST ALL_AVAILABLE_BOARDS)
-    message(FATAL_ERROR
-        "❌ Board '${TARGET_BOARD}' not supported.\n"
-        "📋 Available boards: ${ALL_AVAILABLE_BOARDS}\n"
-        "💡 Tip: Use 'cmake -DTARGET_BOARD=<board>' to specify a board"
-    )
+if(ARDUINO_BOARD STREQUAL "uno")
+    build_arduino_core(uno atmega328p 16000000UL standard)
+elseif(ARDUINO_BOARD STREQUAL "nano")
+    build_arduino_core(nano atmega328p 16000000UL eightanaloginputs)
+elseif(ARDUINO_BOARD STREQUAL "mega2560")
+    build_arduino_core(mega2560 atmega2560 16000000UL mega)
+else()
+    message(FATAL_ERROR "Unsupported board: ${ARDUINO_BOARD}")
 endif()
 
-# Board-specific setup (including toolchain configuration)
-setup_board_environment(${TARGET_BOARD})
+set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/install" CACHE PATH "Installation directory" FORCE)
 
-# Ensure PROJECT_NAME is set properly
-if(NOT DEFINED PROJECT_NAME OR PROJECT_NAME STREQUAL "")
-    set(PROJECT_NAME "${TARGET_BOARD}_project")
-    message(STATUS "🔧 Fallback PROJECT_NAME: ${PROJECT_NAME}")
-endif()
-
-# Project declaration with vendor-determined name
-project(${PROJECT_NAME} C CXX ASM)
-
-# Display build information
-message(STATUS "🎯 Target Board: ${TARGET_BOARD}")
-message(STATUS "📦 Project: ${PROJECT_NAME}")
-message(STATUS "🔧 Vendor System: ${BOARD_VENDOR_SYSTEM}")
-message(STATUS "⚙️  Build Type: ${CMAKE_BUILD_TYPE}")
-if(CMAKE_TOOLCHAIN_FILE)
-    message(STATUS "🛠️  Toolchain: ${CMAKE_TOOLCHAIN_FILE}")
-endif()
-
-# Common build settings
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-
-# User source collection with .ino support
-file(GLOB_RECURSE USER_SOURCES
-    "${SOURCE_DIR}/*.c"
-    "${SOURCE_DIR}/*.cpp"
-    "${SOURCE_DIR}/*.ino"
-    "${SOURCE_DIR}/*.S"
-)
-
-# Convert .ino files to .cpp (Arduino compatibility)
-process_ino_files(USER_SOURCES)
-
-# Collect vendor sources before creating executable
-collect_vendor_sources()
-
-# Create executable with vendor-integrated sources
-add_executable(${PROJECT_NAME}
-    ${USER_SOURCES}
-    ${VENDOR_CORE_SOURCES}
-)
-
-# Apply vendor-integrated build configuration
-apply_vendor_build_config(${PROJECT_NAME})
-
-# Vendor-specific post-build processing
-execute_vendor_post_build(${PROJECT_NAME})
-
-# Build summary
-list(LENGTH USER_SOURCES SOURCE_COUNT)
-list(LENGTH VENDOR_CORE_SOURCES VENDOR_SOURCE_COUNT)
-math(EXPR TOTAL_SOURCES "${SOURCE_COUNT} + ${VENDOR_SOURCE_COUNT}")
-message(STATUS "📄 Sources: ${SOURCE_COUNT} user + ${VENDOR_SOURCE_COUNT} vendor = ${TOTAL_SOURCES} total")
-message(STATUS "✅ Configuration complete!")
+message(STATUS "")
+message(STATUS "Arduino Core Build System")
+message(STATUS "=========================")
+message(STATUS "Board: ${ARDUINO_BOARD}")
+message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "")
+message(STATUS "To build and install:")
+message(STATUS "  cmake -B build")
+message(STATUS "  cmake --build build")
+message(STATUS "  cmake --build build --target install")
+message(STATUS "")
