@@ -1,215 +1,135 @@
 # Arduino CMake Build System
 
-전문가급 Arduino 개발을 위한 현대적인 CMake 기반 빌드 시스템입니다. STM32, AVR, Klangstrom 등 다양한 벤더 시스템을 지원하며, Arduino IDE 없이도 완전한 개발 환경을 제공합니다.
+CMake 기반 Arduino 빌드 시스템. Arduino IDE 없이 AVR 기반 보드를 빌드 및 업로드.
 
-## 🚀 특징
+## 시스템 요구사항
 
-- **다중 벤더 지원**: STM32 (1697+ 보드), AVR (27+ 보드), Klangstrom (2+ 보드)
-- **제로 의존성**: 외부 Arduino IDE 설치 불필요
-- **전문가급 빌드**: CMake 3.21+ 기반 현대적 빌드 시스템
-- **자동 보드 감지**: 벤더별 boards.txt 자동 파싱
-- **크로스 플랫폼**: Linux, macOS, Windows 지원
-
-## 📋 시스템 요구사항
-
-### 1. 핵심 의존성 (모든 보드 필수)
-
+### 기본 도구
 ```bash
 # Arch Linux
-sudo pacman -S --needed cmake base-devel
+sudo pacman -S cmake base-devel
 
-# Ubuntu/Debian
-sudo apt-get install cmake build-essential
-
-# macOS (Homebrew)
-brew install cmake
+# Ubuntu/Debian  
+sudo apt install cmake build-essential
 ```
 
-### 2. 툴체인 및 업로더 의존성
-
-#### AVR 기반 보드 (Arduino Uno, Nano 등)
-
+### AVR 툴체인
 ```bash
 # Arch Linux
-sudo pacman -S --needed avr-gcc avr-binutils avr-libc avrdude
+sudo pacman -S avr-gcc avr-binutils avr-libc avrdude
 
 # Ubuntu/Debian
-sudo apt-get install gcc-avr avr-libc avrdude
-
-# macOS
-brew install avr-gcc avrdude
+sudo apt install gcc-avr avr-libc avrdude
 ```
 
-#### ARM 기반 보드 (STM32 시리즈)
-
+### 장치 권한 설정
 ```bash
-# Arch Linux
-sudo pacman -S --needed arm-none-eabi-gcc arm-none-eabi-binutils arm-none-eabi-newlib stlink dfu-util
+# 영구 설정 (재로그인 필요)
+sudo usermod -a -G uucp $USER
 
-# Ubuntu/Debian
-sudo apt-get install gcc-arm-none-eabi libnewlib-arm-none-eabi stlink-tools dfu-util
-
-# macOS
-brew install arm-none-eabi-gcc stlink dfu-util
+# 임시 설정
+sudo chmod 666 /dev/ttyUSB0
 ```
 
-## 🔧 빠른 시작 (Arduino Uno)
-
-### 1. 저장소 클론 및 초기 설정
-
-```bash
-cd /home/choiharam/works/projects/arduino_ws2812b/arduino-cmake
-```
-
-### 2. 권한 설정 (Linux)
-
-Arduino 장치에 접근하려면 dialout 그룹에 추가해야 합니다:
-
-```bash
-# 영구적 권한 설정 (재로그인 필요)
-sudo usermod -a -G dialout $USER
-
-# 임시 권한 설정 (재부팅 시 초기화)
-sudo chmod 666 /dev/ttyACM0
-```
-
-### 3. 빌드 및 업로드
-
-```bash
-# 클린 빌드
-./build.sh -b uno -s src-arduino -c
-
-# 업로드
-./upload.sh -b arduino_uno -d /dev/ttyACM0 -f build/uno_project.hex
-```
-
-## 📖 상세 사용법
-
-### 빌드 스크립트 (build.sh)
-
-#### 기본 사용법
-
-```bash
-./build.sh [OPTIONS]
-```
-
-#### 옵션
-
-| 옵션 | 설명 | 기본값 |
-|------|------|--------|
-| `-b, --board BOARD` | 타겟 보드 | uno |
-| `-t, --type TYPE` | 빌드 타입 (Debug/Release) | Release |
-| `-s, --source DIR` | 소스 디렉토리 | src |
-| `-o, --output DIR` | 빌드 출력 디렉토리 | build |
-| `-c, --clean` | 클린 빌드 (빌드 디렉토리 삭제) | false |
-| `-l, --list-boards` | 사용 가능한 보드 목록 표시 | - |
-| `-h, --help` | 도움말 표시 | - |
-
-#### 지원 보드
-
-**AVR 보드:**
-- `uno` - Arduino UNO
-- `nano` - Arduino Nano  
-- `mega2560` - Arduino Mega 2560
-- `leonardo` - Arduino Leonardo
-- `micro` - Arduino Micro
-
-**STM32 보드:**
-- `NUCLEO_F401RE`, `NUCLEO_F446RE`, `NUCLEO_H743ZI2`
-- `DISCO_F407VG` 등 1697+ 보드
-
-**Klangstrom 보드:**
-- `klst_caterpillar`
-- `klst_panda`
-
-#### 사용 예제
-
-```bash
-# Arduino Uno 클린 빌드
-./build.sh -b uno -s src-arduino -c
-
-# Arduino Nano 디버그 빌드
-./build.sh -b nano -t Debug -s src-nano
-
-# STM32 Nucleo 빌드
-./build.sh -b NUCLEO_F401RE -s src-stm32
-
-# 사용 가능한 보드 목록
-./build.sh --list-boards
-```
-
-### 업로드 스크립트 (upload.sh)
-
-#### 기본 사용법
-
-```bash
-./upload.sh -b BOARD -d DEVICE -f FIRMWARE
-```
-
-#### 옵션
-
-| 옵션 | 설명 |
-|------|------|
-| `-b, --board BOARD` | 타겟 보드 (arduino_uno, klst_panda) |
-| `-d, --device DEVICE` | 장치 경로 또는 업로드 방법 |
-| `-f, --firmware FILE` | 펌웨어 파일 |
-
-#### 업로드 방법
-
-**Arduino UNO:**
-```bash
-./upload.sh -b arduino_uno -d /dev/ttyACM0 -f build/uno_project.hex
-./upload.sh -b arduino_uno -d /dev/ttyUSB0 -f build/uno_project.hex
-```
-
-**STM32 (DFU 모드):**
-```bash
-# 1. 보드를 DFU 모드로 전환 (BOOT 버튼 누른 상태에서 RESET)
-# 2. DFU 업로드
-./upload.sh -b klst_panda -d dfu -f build/klst_panda_project.bin
-```
-
-**STM32 (ST-Link):**
-```bash
-./upload.sh -b klst_panda -d openocd -f build/klst_panda_project.elf
-```
-
-## 🏗️ 프로젝트 구조
+## 프로젝트 구조
 
 ```
 arduino-cmake/
-├── CMakeLists.txt          # 메인 CMake 설정
-├── build.sh               # 빌드 스크립트
-├── upload.sh              # 업로드 스크립트
-├── src/                   # 기본 소스 디렉토리
-├── src-arduino/          # Arduino 예제 소스
-│   └── main.cpp          # LED 깜빡이기 예제
-├── vendor/               # 벤더 코어 라이브러리
-│   ├── ArduinoCore-avr/  # AVR Arduino 코어
-│   └── klangstrom-arduino/ # Klangstrom 코어
-├── cmake/                # CMake 모듈
-│   ├── toolchains/      # 툴체인 설정
-│   │   └── avr-gcc.cmake
-│   ├── core/           # 코어 통합 모듈
-│   └── boards/         # 보드별 설정
-└── build/               # 빌드 출력 디렉토리
+├── CMakeLists.txt                  # 코어 라이브러리 빌드
+├── cmake/
+│   ├── toolchains/
+│   │   └── avr-gcc.cmake          # AVR 툴체인 설정
+│   ├── core/
+│   │   ├── ArduinoCore.cmake      # 코어 빌드 로직
+│   │   └── avr_integration.cmake  # AVR 통합
+│   ├── boards/avr/
+│   │   ├── uno.cmake              # Uno 설정
+│   │   └── nano.cmake             # Nano 설정
+│   └── modules/
+│       ├── ArduinoProject.cmake   # 프로젝트 함수
+│       └── ArduinoLibrary.cmake   # 라이브러리 함수
+├── install/                        # 빌드된 코어 라이브러리
+│   ├── include/                   # 헤더 파일
+│   └── lib/                       # .a 라이브러리
+├── projects/                       # 사용자 프로젝트
+│   ├── test_nano/                 # Blink 예제
+│   ├── ws2812b_nano/              # WS2812B 8-LED 패턴
+│   └── ws2812b_simple/            # WS2812B 기본 예제
+├── templates/                      # 프로젝트 템플릿
+└── vendor/
+    └── ArduinoCore-avr/           # Arduino 공식 코어
 ```
 
-## 💻 소스 코드 작성
+## 빠른 시작
 
-### Arduino 스타일 코드 (.ino)
+### 1. 코어 라이브러리 빌드
+```bash
+cd /path/to/arduino-cmake
 
+# Uno 코어 빌드
+cmake -B build -DARDUINO_BOARD=uno
+cmake --build build
+cmake --build build --target install
+
+# Nano 코어 빌드
+cmake -B build -DARDUINO_BOARD=nano
+cmake --build build
+cmake --build build --target install
+```
+
+빌드 결과: `install/lib/libArduinoCore-{board}.a`
+
+### 2. 프로젝트 빌드 및 업로드
+```bash
+cd projects/test_nano
+cmake -B build
+cmake --build build
+
+# 업로드 (포트 자동 설정됨)
+cmake --build build --target upload
+```
+
+## 새 프로젝트 생성
+
+### 1. 템플릿 복사
+```bash
+cp -r templates/ my_project/
+cd my_project
+```
+
+### 2. CMakeLists.txt 작성
+```cmake
+cmake_minimum_required(VERSION 3.20)
+
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/toolchains/avr-gcc.cmake)
+project(my_project C CXX ASM)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/modules/ArduinoProject.cmake)
+
+# 보드 선택: uno, nano, mega2560
+arduino_init(BOARD nano)
+
+arduino_executable(
+    firmware
+    SOURCES
+        src/main.cpp
+        src/mylib.cpp
+)
+
+# 포트 자동 감지: /dev/ttyUSB*, /dev/ttyACM*
+arduino_upload_target(firmware PORT /dev/ttyUSB0 BAUDRATE 57600)
+```
+
+### 3. 소스 코드 작성
 ```cpp
-// src-arduino/main.cpp
-#include "Arduino.h"
+// src/main.cpp
+#include <Arduino.h>
 
 void setup() {
-    // 초기화 코드
     pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
-    // 반복 실행 코드
     digitalWrite(LED_BUILTIN, HIGH);
     delay(1000);
     digitalWrite(LED_BUILTIN, LOW);
@@ -217,180 +137,331 @@ void loop() {
 }
 ```
 
-### C++ 스타일 코드
+### 4. 빌드 및 업로드
+```bash
+cmake -B build
+cmake --build build
+cmake --build build --target upload
+```
 
+## 프로젝트 예제
+
+### test_nano: Blink
+기본 LED 깜빡이기 예제.
+```bash
+cd projects/test_nano
+cmake -B build && cmake --build build
+cmake --build build --target upload
+```
+
+### ws2812b_simple: 기본 WS2812B
+30개 LED 무지개 패턴.
+```bash
+cd projects/ws2812b_simple
+cmake -B build && cmake --build build
+```
+
+**특징:**
+- 메모리 효율적: ~500 bytes 코드, LED당 3 bytes RAM
+- 인라인 어셈블리 타이밍 제어
+- API: `setPixel()`, `clear()`, `show()`, `setBrightness()`
+
+### ws2812b_nano: 8-LED 원형 패턴
+8개 LED 원형 배치용 5가지 회전 패턴.
+```bash
+cd projects/ws2812b_nano
+cmake -B build && cmake --build build
+cmake --build build --target upload
+```
+
+**설정:**
+- LED 핀: D10
+- LED 개수: 8
+- 밝기: 100/255
+- 회전 속도: 1초/바퀴
+- 패턴 전환: 3초마다
+
+**패턴:**
+1. 흰색 그라데이션: 중심(255) + 좌우 2칸(128, 64)
+2. 파란색 그라데이션: 중심(255) + 좌우 3칸(180, 100, 40)
+3. 빨간색 펄스 웨이브: 2개 중심점 그라데이션
+4. 초록색 더블 그라데이션: 0번/4번 LED 동시 회전
+5. 보라색 혜성 꼬리: 5칸 긴 꼬리 효과
+
+## CMake 함수 API
+
+### arduino_init(BOARD <board>)
+보드 설정 초기화. 코어 라이브러리를 링크하고 컴파일 옵션 설정.
+
+**매개변수:**
+- `BOARD`: uno, nano, mega2560
+
+**내부 동작:**
+- 보드별 MCU/F_CPU 설정 로드
+- 코어 라이브러리 경로 설정
+- 컴파일러 플래그 적용
+
+### arduino_executable(target SOURCES ...)
+실행 파일 생성. 코어 라이브러리 자동 링크.
+
+**매개변수:**
+- `target`: 타겟 이름
+- `SOURCES`: 소스 파일 목록
+
+**출력 파일:**
+- `{target}.elf`: 실행 파일
+- `{target}.hex`: 업로드용 HEX 파일
+
+**자동 처리:**
+- 코어 라이브러리 링크
+- .hex/.eep 변환
+- 크기 정보 출력
+
+### arduino_upload_target(target PORT <port> BAUDRATE <rate>)
+업로드 타겟 생성.
+
+**매개변수:**
+- `target`: arduino_executable로 생성한 타겟
+- `PORT`: 시리얼 포트 (예: /dev/ttyUSB0)
+- `BAUDRATE`: Uno=115200, Nano=57600
+
+**사용:**
+```bash
+cmake --build build --target upload
+```
+
+## 보드별 설정
+
+### Arduino Uno
+```cmake
+arduino_init(BOARD uno)
+arduino_upload_target(firmware PORT /dev/ttyACM0 BAUDRATE 115200)
+```
+- MCU: atmega328p
+- F_CPU: 16000000UL
+- Variant: standard
+
+### Arduino Nano
+```cmake
+arduino_init(BOARD nano)
+arduino_upload_target(firmware PORT /dev/ttyUSB0 BAUDRATE 57600)
+```
+- MCU: atmega328p
+- F_CPU: 16000000UL
+- Variant: eightanaloginputs
+
+### Arduino Mega 2560
+```cmake
+arduino_init(BOARD mega2560)
+arduino_upload_target(firmware PORT /dev/ttyACM0 BAUDRATE 115200)
+```
+- MCU: atmega2560
+- F_CPU: 16000000UL
+- Variant: mega
+
+## 문제 해결
+
+### 장치 찾기
+```bash
+# 연결된 Arduino 확인
+ls /dev/tty{USB,ACM}*
+
+# dmesg로 확인
+dmesg | grep tty
+```
+
+### 업로드 실패
+```bash
+# avrdude 테스트 (Nano)
+avrdude -p atmega328p -c arduino -P /dev/ttyUSB0 -b 57600
+
+# avrdude 테스트 (Uno)
+avrdude -p atmega328p -c arduino -P /dev/ttyACM0 -b 115200
+```
+
+### 빌드 실패
+```bash
+# 상세 로그
+cmake --build build --verbose
+
+# 클린 빌드
+rm -rf build
+cmake -B build && cmake --build build
+```
+
+### 메모리 사용량 확인
+```bash
+avr-size build/firmware.elf
+```
+
+출력 예시:
+```
+   text    data     bss     dec     hex filename
+   2908      33       0    2941     b7d build/firmware.elf
+```
+
+## 라이선스
+
+GNU General Public License v3.0. [LICENSE](LICENSE) 참조.
+
+---
+
+# Arduino CMake Build System
+
+CMake-based build system for Arduino without Arduino IDE. Supports AVR-based boards.
+
+## System Requirements
+
+### Basic Tools
+```bash
+# Arch Linux
+sudo pacman -S cmake base-devel
+
+# Ubuntu/Debian
+sudo apt install cmake build-essential
+```
+
+### AVR Toolchain
+```bash
+# Arch Linux
+sudo pacman -S avr-gcc avr-binutils avr-libc avrdude
+
+# Ubuntu/Debian
+sudo apt install gcc-avr avr-libc avrdude
+```
+
+### Device Permissions
+```bash
+# Permanent (requires re-login)
+sudo usermod -a -G uucp $USER
+
+# Temporary
+sudo chmod 666 /dev/ttyUSB0
+```
+
+## Quick Start
+
+### 1. Build Core Library
+```bash
+cd /path/to/arduino-cmake
+
+# Build Uno core
+cmake -B build -DARDUINO_BOARD=uno
+cmake --build build
+cmake --build build --target install
+
+# Build Nano core
+cmake -B build -DARDUINO_BOARD=nano
+cmake --build build
+cmake --build build --target install
+```
+
+Output: `install/lib/libArduinoCore-{board}.a`
+
+### 2. Build and Upload Project
+```bash
+cd projects/test_nano
+cmake -B build
+cmake --build build
+cmake --build build --target upload
+```
+
+## Create New Project
+
+### 1. Copy Template
+```bash
+cp -r templates/ my_project/
+cd my_project
+```
+
+### 2. Edit CMakeLists.txt
+```cmake
+cmake_minimum_required(VERSION 3.20)
+
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/toolchains/avr-gcc.cmake)
+project(my_project C CXX ASM)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/modules/ArduinoProject.cmake)
+
+# Select board: uno, nano, mega2560
+arduino_init(BOARD nano)
+
+arduino_executable(
+    firmware
+    SOURCES
+        src/main.cpp
+)
+
+arduino_upload_target(firmware PORT /dev/ttyUSB0 BAUDRATE 57600)
+```
+
+### 3. Write Code
 ```cpp
 // src/main.cpp
 #include <Arduino.h>
 
-class LedBlinker {
-private:
-    int pin;
-    unsigned long previousMillis;
-    int interval;
-    bool state;
-
-public:
-    LedBlinker(int ledPin, int blinkInterval) 
-        : pin(ledPin), interval(blinkInterval), previousMillis(0), state(false) {}
-
-    void begin() {
-        pinMode(pin, OUTPUT);
-        digitalWrite(pin, LOW);
-    }
-
-    void update() {
-        unsigned long currentMillis = millis();
-        if (currentMillis - previousMillis >= interval) {
-            previousMillis = currentMillis;
-            state = !state;
-            digitalWrite(pin, state);
-        }
-    }
-};
-
-LedBlinker led(LED_BUILTIN, 1000);
-
 void setup() {
-    led.begin();
+    pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
-    led.update();
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(1000);
+    digitalWrite(LED_BUILTIN, LOW);
+    delay(1000);
 }
 ```
 
-## 🔧 고급 설정
-
-### 수동 CMake 빌드
-
-스크립트 없이 직접 CMake를 사용할 수 있습니다:
-
+### 4. Build and Upload
 ```bash
-# 빌드 디렉토리 생성 및 설정
-mkdir -p build
-cd build
-
-cmake .. \
-    -DTARGET_BOARD=uno \
-    -DSOURCE_DIR=src-arduino \
-    -DAVR_VENDOR_ROOT=/path/to/vendor/ArduinoCore-avr \
-    -DCMAKE_TOOLCHAIN_FILE=/path/to/cmake/toolchains/avr-gcc.cmake
-
-# 빌드
-cmake --build . --parallel
-
-# 업로드
-make upload_uno_project
+cmake -B build
+cmake --build build
+cmake --build build --target upload
 ```
 
-### 커스텀 보드 설정
+## CMake API
 
-새로운 보드를 추가하려면 `cmake/boards/avr/`에 새 파일을 생성:
+### arduino_init(BOARD <board>)
+Initialize board configuration. Links core library and sets compiler flags.
 
-```cmake
-# cmake/boards/avr/my_custom_board.cmake
-set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchains/avr-gcc.cmake")
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/cores/arduino-avr.cmake)
+### arduino_executable(target SOURCES ...)
+Create executable. Automatically links core library and generates .hex file.
 
-set(PROJECT_NAME "my_custom_board_project" CACHE INTERNAL "")
+### arduino_upload_target(target PORT <port> BAUDRATE <rate>)
+Create upload target for avrdude.
 
-setup_avr_board("MY_CUSTOM_BOARD" "atmega328p" "16000000L" "standard")
+## Board Settings
 
-function(board_post_build target_name)
-    avr_post_build(${target_name} "atmega328p")
-    
-    add_custom_target(upload_${target_name}
-        COMMAND avrdude -p atmega328p -c arduino -P /dev/ttyACM0 -b 115200
-                -U flash:w:${CMAKE_CURRENT_BINARY_DIR}/${target_name}.hex:i
-        DEPENDS ${target_name}
-        COMMENT "Uploading ${target_name}.hex to Custom Board"
-    )
-endfunction()
+### Arduino Uno
+- MCU: atmega328p, F_CPU: 16MHz
+- Upload: `/dev/ttyACM0`, 115200 baud
+
+### Arduino Nano
+- MCU: atmega328p, F_CPU: 16MHz
+- Upload: `/dev/ttyUSB0`, 57600 baud
+
+### Arduino Mega 2560
+- MCU: atmega2560, F_CPU: 16MHz
+- Upload: `/dev/ttyACM0`, 115200 baud
+
+## Troubleshooting
+
+### Find Device
+```bash
+ls /dev/tty{USB,ACM}*
+dmesg | grep tty
 ```
 
-## 🐛 문제 해결
-
-### 일반적인 문제
-
-#### 1. 권한 오류
+### Upload Failed
 ```bash
-# 장치 권한 오류 시
-sudo chmod 666 /dev/ttyACM0
-# 또는 영구적 권한 설정
-sudo usermod -a -G dialout $USER
+avrdude -p atmega328p -c arduino -P /dev/ttyUSB0 -b 57600
 ```
 
-#### 2. 툴체인 찾기 오류
+### Build Failed
 ```bash
-# AVR 툴체인 설치 확인
-which avr-gcc
-avr-gcc --version
-
-# ARM 툴체인 설치 확인
-which arm-none-eabi-gcc
-arm-none-eabi-gcc --version
-```
-
-#### 3. 빌드 실패
-```bash
-# 클린 빌드 시도
-./build.sh -b uno -s src-arduino -c
-
-# 상세 빌드 로그 확인
 cmake --build build --verbose
 ```
 
-#### 4. 업로드 실패
-```bash
-# 장치 연결 확인
-ls /dev/tty* | grep -E "(ACM|USB)"
+## License
 
-# avrdude 테스트
-avrdude -p atmega328p -c arduino -P /dev/ttyACM0 -b 115200 -v
-```
-
-### 디버깅 팁
-
-1. **상세 로그**: `cmake --build build --verbose`
-2. **컴파일 명령 확인**: `build/CMakeFiles/uno_project.dir/build.make`
-3. **장치 정보**: `dmesg | grep tty` (Arduino 연결 후)
-4. **펌웨어 크기**: `avr-size build/uno_project.elf`
-
-## 📚 API 참조
-
-### CMake 변수
-
-| 변수 | 설명 | 기본값 |
-|------|------|--------|
-| `TARGET_BOARD` | 타겟 보드 이름 | uno |
-| `SOURCE_DIR` | 소스 디렉토리 | src |
-| `CMAKE_BUILD_TYPE` | 빌드 타입 | Release |
-| `AVR_VENDOR_ROOT` | AVR 코어 경로 | vendor/ArduinoCore-avr |
-
-### 보드 설정 함수
-
-- `setup_avr_board(board_id mcu f_cpu variant)`
-- `avr_post_build(target_name mcu)`
-- `collect_avr_vendor_sources(core)`
-
-## 🤝 기여
-
-1. 이슈 리포트: [GitHub Issues](https://github.com/your-repo/issues)
-2. 풀 리퀘스트: [GitHub PRs](https://github.com/your-repo/pulls)
-3. 기여 가이드: [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. [LICENSE](LICENSE) 파일을 참조하세요.
-
-## 🙏 감사
-
-- [Arduino](https://www.arduino.cc/) - Arduino 코어 라이브러리
-- [STM32duino](https://github.com/stm32duino) - STM32 Arduino 코어
-- [CMake](https://cmake.org/) - 빌드 시스템
-- [AVR-GCC](https://gcc.gnu.org/wiki/AVR-GCC) - AVR 툴체인
-
----
-
-**🎯 즐거운 Arduino 개발 되세요!**
+GNU General Public License v3.0. See [LICENSE](LICENSE).

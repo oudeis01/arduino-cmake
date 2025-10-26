@@ -2,10 +2,40 @@
 !.git
 !.gitignore
 !.gitmodules
+
+# Build directories
 build/
-*.md
-!README.md
-*.txt
-!CMakeLists.txt
+install/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+*.cmake.in
+Makefile
+
+# Compiled files
+*.o
+*.a
+*.elf
+*.hex
+*.eep
+*.lss
+*.map
+*.sym
+
+# Logs
 *.log
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
