@@ -11,26 +11,6 @@ else()
     message(WARNING "ArduinoCore-avr not found in vendor directory")
 endif()
 
-# Arduino STM32 코어 경로  
-if(EXISTS "${VENDOR_ROOT}/Arduino_Core_STM32")
-    set(ARDUINO_STM32_ROOT "${VENDOR_ROOT}/Arduino_Core_STM32")
-    set(ARDUINO_STM32_AVAILABLE TRUE)
-    message(STATUS "Found Arduino_Core_STM32 at: ${ARDUINO_STM32_ROOT}")
-else()
-    set(ARDUINO_STM32_AVAILABLE FALSE)
-    message(WARNING "Arduino_Core_STM32 not found in vendor directory")
-endif()
-
-# Klangstrom 경로
-if(EXISTS "${VENDOR_ROOT}/klangstrom-arduino")
-    set(KLANGSTROM_ROOT "${VENDOR_ROOT}/klangstrom-arduino")
-    set(KLANGSTROM_AVAILABLE TRUE)
-    message(STATUS "Found klangstrom-arduino at: ${KLANGSTROM_ROOT}")
-else()
-    set(KLANGSTROM_AVAILABLE FALSE)
-    message(WARNING "klangstrom-arduino not found in vendor directory")
-endif()
-
 # 시스템 툴체인 탐지 함수
 function(find_system_toolchain toolchain_name result_var)
     find_program(FOUND_TOOLCHAIN ${toolchain_name} PATHS
